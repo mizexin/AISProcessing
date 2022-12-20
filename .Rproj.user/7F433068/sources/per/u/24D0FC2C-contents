@@ -1,0 +1,8 @@
+a = read.csv('/Users/mizexin/AIS/2019_year_container/209056000.csv')
+
+addDateTime<-function(aship){#aship has timestamp column as time, timezone is set to UTC,use lubridate package
+  
+  aship=mutate(aship,datetime=as.POSIXct(time,tz='UTC',origin='1970-01-01'))
+  return(aship)
+  
+}

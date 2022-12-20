@@ -1,0 +1,27 @@
+{
+    "id": "E28C2717",
+    "path": "~/R/AIS_Processing/汇总结果.R",
+    "project_path": "汇总结果.R",
+    "type": "r_source",
+    "hash": "3630135878",
+    "contents": "",
+    "dirty": false,
+    "created": 1654092955602.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "12,10",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1655368881,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1655368881985,
+    "read_only": false,
+    "read_only_alternatives": []
+}

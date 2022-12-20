@@ -1,0 +1,27 @@
+{
+    "id": "705DB974",
+    "path": "~/R/AISProcessing/5总排放异常点.R",
+    "project_path": "5总排放异常点.R",
+    "type": "r_source",
+    "hash": "3408940029",
+    "contents": "",
+    "dirty": true,
+    "created": 1671196201285.0,
+    "source_on_save": false,
+    "relative_order": 10,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "3,15",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1671545169,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1671545169530,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,17 @@
+﻿EngineType,FuelType,AE_AB_BC_EFe
+Steam_Boiler,HFO,0.08
+Steam_Boiler,LSHFO,0.08
+Steam_Boiler,MDO,0.06
+Steam_Boiler,LNG,0.003
+Gas_Turbine,HFO,0.005
+Gas_Turbine,LSHFO,0.005
+Gas_Turbine,MDO,0.004
+Gas_Turbine,LNG,0.003
+Otto_SS,LNG,0.003
+Otto_MS,LNG,0.003
+LNG_Diesel,LNG,0.002
+LBSI,LNG,0.003
+Auxiliary_Engines,LNG,0.003
+Auxiliary_Engines,HFO,0.08
+Auxiliary_Engines,LSHFO,0.08
+Auxiliary_Engines,MDO,0.06

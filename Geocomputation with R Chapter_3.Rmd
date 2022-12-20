@@ -1,0 +1,232 @@
+```{r Loaded packages 加载包}
+library(sf)
+library(raster)
+library(dplyr)
+library(stringr) # for working with strings (pattern matching)
+library(tidyr)   # for unite() and separate()
+library(spData)
+```
+
+```{r methods of simple feature}
+# sf类似一个dataframe，有一个特殊列gemotry，他是一个列表列，包含地理实体
+methods(class = "sf") # methods for sf objects, first 12 shown
+# sf通常会调用对象的几何列，geometry但可以使用任何名称。例如，以下命令创建名为 g 的几何列：
+st_sf(data.frame(n = world$name_long), g = world$geom)
+# 这使得从空间数据库导入的几何具有多种名称，例如wkb_geometry和the_geom。
+```
+
+```{r sf数据分析}
+# 度量world数据集
+dim(world) # it is a 2 dimensional object, with rows and columns
+nrow(world) # how many rows?
+ncol(world) # how many columns?
+# 提取sf对象属性
+world_df = st_drop_geometry(world)
+class(world_df)
+```
+
+```{r Vector属性子集}
+# R子集函数包括[、subset()和$。 dplyr子集化功能包括select()，filter()，和pull()
+world[1:6, ] # subset rows by position
+world[, 1:3] # subset columns by position
+world[, c("name_long", "lifeExp")] # subset columns by name 返回了geom列
+# 逻辑Vector的子集化应用
+sel_area = world$area_km2 < 10000 # 返回TURE/FALSE 布尔值列表
+summary(sel_area) # a logical vector
+small_countries = world[sel_area, ] # 面积小于10000km2的国家列表
+small_countries = world[world$area_km2 < 10000, ] # 三种方法一样
+small_countries = subset(world, area_km2 < 10000)
+```
+
+```{r dplyr子集功能 select()，slice()【等于行select()】，filter()【等于subset()】和pull()}
+# select
+# raster和dplyr都有select() 避免分歧 使用 dplyr::select()
+# 选择name和pop列
+world1 = dplyr::select(world, name_long, pop) 
+names(world1)
+# all columns between name_long and pop (inclusive) 
+# 所有在name_long和pop之间的列
+world2 = dplyr::select(world, name_long:pop)
+names(world2)
+# all columns except subregion and area_km2 (inclusive) 
+# 省略特定列
+world3 = dplyr::select(world, -subregion, -area_km2)
+names(world3)
+# select()同时对列进行子集化和重命名，例如：
+world4 = dplyr::select(world, name_long, population = pop)
+names(world4)
+slice(world, 3:5) # slice是select的行等价物 返回3:5行
+# Countries with a life expectancy longer than 82 years # dplyr中等于subset的函数
+world6 = filter(world, lifeExp > 82) # 可以使用比较运算符
+```
+
+```{r SAMPLE Subsetting Return dataframe/Return vector 子集运算 返回数据框/返回向量}
+# create throw-away data frame
+d = data.frame(pop = 1:10, area = 1:10)
+# return data frame object when selecting a single column 
+d[, "pop", drop = FALSE] # equivalent to d["pop"]
+select(d, pop)
+# return a vector when selecting a single column
+d[, "pop"]
+pull(d, pop)
+```
+
+```{r geom的粘性 返回数据框会带有geom}
+# data frame object 返回带有geom的数据框
+a = world[, "pop"]
+# vector objects 返回Vector
+b = world$pop
+c = pull(world, pop)
+```
+
+```{r dplyr & pipe dplyr与管道函数}
+world7 = world %>%
+  filter(continent == "Asia") %>%
+  dplyr::select(name_long, continent) %>%
+  slice(1:5)
+
+world8 = slice(
+  dplyr::select(
+    filter(world, continent == "Asia"),
+    name_long, continent),
+  1:5)
+```
+
+```{r  Vector attribute aggregation Vector的属性聚合}
+# 分别以各大洲进行人口和聚合 返回大洲和大洲人数的dataframe
+world_agg1 = aggregate(pop ~ continent, FUN = sum, data = world, na.rm = TRUE)
+world_agg1
+class(world_agg1)
+# aggregate 是一个通用函数 行为取决于输入类型 
+# 当x是一个sf对象时 “by”参数可用 
+world_agg2 = aggregate(world["pop"], by = list(world$continent),
+                       FUN = sum, na.rm = TRUE)
+world_agg2 # 返回的dataframe有sf性质 并带有geom
+class(world_agg2)
+# dlpyr::summarize()与aggregate基本相同（分组聚合） summarize()通常与group_by()配合使用
+world_agg3 = world %>%
+  group_by(continent) %>%
+  summarize(pop_rename = sum(pop, na.rm = TRUE))
+# 这种方法很灵活，可以控制新的列名。如下所示：该命令计算地球人口
+world %>% 
+  summarize(pop = sum(pop, na.rm = TRUE), n = n()) # pop和n是结果中的列名 
+# 世界上人口数量最多的三个大洲，人口统计，以及大洲国家数量，并排序
+world %>% 
+  dplyr::select(pop, continent) %>% 
+  group_by(continent) %>% 
+  summarize(pop = sum(pop, na.rm = TRUE), n_countries = n()) %>% 
+  top_n(n = 3, wt = pop) %>%
+  arrange(desc(pop)) %>%
+  st_drop_geometry() # 提取对象属性
+```
+
+```{r Vector attribute joining 向量属性连接}
+# example1
+world_coffee = left_join(world, coffee_data)
+class(world_coffee)
+names(world_coffee)
+plot(world_coffee["coffee_production_2017"])
+# example2 改名join
+coffee_renamed = rename(coffee_data, nm = name_long)
+world_coffee2 = left_join(world, coffee_renamed, by = c(name_long = "nm"))
+# inner joining 内部链接 只保留有数据的数据
+world_coffee_inner = inner_join(world, coffee_data)
+nrow(world)       # 45 有两行不匹配
+nrow(coffee_data) # 47
+nrow(world_coffee_inner)
+setdiff(coffee_data$name_long, world$name_long) # 用setdiff识别不匹配的行
+# [1] "Congo, Dem. Rep. of" "Others"            # coffee_data与world中不匹配的值
+str_subset(world$name_long, "Dem*.+Congo")      # stringr中的字符串匹配 查看完整信息
+# 创建一个新的coffee_data 修改不匹配的国家名称
+coffee_data$name_long[grepl("Congo,", coffee_data$name_long)] = 
+  str_subset(world$name_long, "Dem*.+Congo")
+world_coffee_match = inner_join(world, coffee_data)
+#> 重新Joining, by = "name_long"
+nrow(world_coffee_match)
+#> [1] 46 结果
+
+
+# 另一个方向joining
+coffee_world = left_join(coffee_data, world)
+#> Joining, by = "name_long"
+class(coffee_world)
+#> [1] "tbl_df"     "tbl"        "data.frame"
+```
+
+```{r Creating attributes and removing spatial information 创建属性和删除空间信息}
+# 添加新列计算人口密度
+world_new = world # do not overwrite our original data
+world_new$pop_dens = world_new$pop / world_new$area_km2
+# 或者使用dplyr函数mutate()或transmute(). mutate()在sf对象中的倒数第二个列添加新列（最后一列为geom保留）：
+world %>% 
+  mutate(pop_dens = pop / area_km2)
+# mutate和transmute的区别是 前者保留其他列 后者只保留新建列 其他列全部删除（粘性geom除外）
+world %>% 
+  transmute(pop_dens = pop / area_km2)
+# tidyr::unite 组合中间分隔符为: 是否删除原始列
+world_unite = world %>%
+  unite("con_reg", continent:region_un, sep = ":", remove = TRUE)
+# tidyr::separate 拆分 以:
+world_separate = world_unite %>% 
+  separate(con_reg, c("continent", "region_un"), sep = ":")
+
+```
+
+```{r Manipulating raster objects 光栅对象处理}
+# 用raster()创建高程数据集
+elev = raster(nrows = 6, ncols = 6, res = 0.5,
+              xmn = -1.5, xmx = 1.5, ymn = -1.5, ymx = 1.5,
+              vals = 1:36)
+plot(elev)
+# 创建
+grain_order = c("clay", "silt", "sand") # character 字符型
+grain_char = sample(grain_order, 36, replace = TRUE)
+grain_fact = factor(grain_char, levels = grain_order) # 用factor 定义有序 vector
+grain = raster(nrows = 6, ncols = 6, res = 0.5, 
+               xmn = -1.5, xmx = 1.5, ymn = -1.5, ymx = 1.5,
+               vals = grain_fact)
+plot(grain)
+# raster对象可以包含类的值numeric，integer，logical或factor，但不是character
+# 要使用字符值，必须首先将它们转换为适当的类，例如使用函数factor()
+# levels在前面的代码块中使用该参数来创建一个有序的因素：就粒度而言，粘土 < 淤泥 < 沙子
+
+#raster对象将分类变量表示为整数，因此grain[1,1]返回一个表示唯一标识符的数字，而不是“粘土”、“淤泥”或“沙子”。栅格对象将相应的查找表或“栅格属性表”（RAT）作为数据框存储在attributes中（属性表）
+# 使用该函数levels()检索新的因子水平并将其添加到属性表attributes中
+levels(grain)[[1]] = cbind(levels(grain)[[1]], wetness = c("wet", "moist", "dry"))
+levels(grain)
+factorValues(grain, grain[c(1, 11, 35)])
+```
+
+```{r Raster subsetting Raster子集}
+# Raster子集由[]来完成
+# 第一种 行列索引
+elev[1, 1]
+# 第二种 栅格ID
+elev[1]
+# 要提取所有值或完整行，可以使用values()和getValues()
+values(elev)
+# 从stack或者brick中提取值
+r_stack = stack(elev, grain)
+names(r_stack) = c("elev", "grain")
+# three ways to extract a layer of a stack 三种方式
+raster::subset(r_stack, "elev")
+r_stack[["elev"]]
+r_stack$elev
+# 修改值
+elev[1, 1] = 0
+# 检索值
+elev[]
+# 修改多个值
+elev[1, 1:2] = 0
+```
+
+```{r Summarizing raster objects 汇总Raster对象}
+summary(elev)
+# 自定义汇总
+cellStats(elev, sd)
+# stack brick 分层汇总
+summary(brick(elev, grain))
+hist(elev)
+# boxplot()，density()，hist()和pairs()
+```
+

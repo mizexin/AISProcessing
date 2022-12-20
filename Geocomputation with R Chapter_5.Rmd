@@ -1,0 +1,311 @@
+```{r}
+library(sf)
+library(raster)
+library(dplyr)
+library(spData)
+library(spDataLarge)
+```
+
+```{r Geometric operations on vector data}
+
+```
+
+```{r Simplification 简化}
+seine_simp = st_simplify(seine, dTolerance = 2000)  # 2000 m
+plot(seine_simp)
+# 简化后的空间占用
+object.size(seine)
+#> 18096 bytes
+object.size(seine_simp)
+#> 9112 bytes
+# st_simplify()简化方法 丢失了一些边缘 有空缺
+us_states2163 = st_transform(us_states, 2163)
+us_states_simp1 = st_simplify(us_states2163, dTolerance = 100000) %>%plot() # 100 km
+plot(us_states_simp1)
+# rmapshaper::ms_simplify() keep_shapes 保留细节较多
+# proportion of points to retain (0-1; default 0.05)
+us_states2163$AREA = as.numeric(us_states2163$AREA)
+us_states_simp2 = rmapshaper::ms_simplify(us_states2163, keep = 0.01,
+                                          keep_shapes = TRUE)
+plot(us_states_simp2)
+```
+
+```{r Centroids 质心 地理中心点} 
+# 新西兰质心 和 塞纳河质心
+nz_centroid = st_centroid(nz)
+seine_centroid = st_centroid(seine)
+# 区域内质心 st_point_on_surface() 保证质心不会落在区域外（比如岛国）
+```
+
+```{r Buffers 缓冲区}
+seine_buff_5km = st_buffer(seine, dist = 5000)
+seine_buff_50km = st_buffer(seine, dist = 50000)
+plot(seine_buff_5km,)
+```
+
+```{r Affine transformations 仿射变换 对sfg sfc}
+# 包括平移、缩放旋转
+# Shift 平移 
+nz_sfc = st_geometry(nz)
+nz_shift = nz_sfc + c(0, 100000)# 所有坐标向北移动100000米
+# Scale 缩放 0.5 （原geom-质心）*0.5 + 质心 
+nz_centroid_sfc = st_centroid(nz_sfc)
+nz_scale = (nz_sfc - nz_centroid_sfc) * 0.5 + nz_centroid_sfc
+# Rotate 旋转 a度
+rotation = function(a){
+  r = a * pi / 180 #degrees to radians
+  matrix(c(cos(r), sin(r), -sin(r), cos(r)), nrow = 2, ncol = 2)
+} 
+nz_rotate = (nz_sfc - nz_centroid_sfc) * rotation(30) + nz_centroid_sfc
+# 最后，新创建的几何图形可以用以下st_set_geometry()函数替换旧的几何图形：
+nz_scale_sf = st_set_geometry(nz, nz_scale)
+```
+
+```{r Clipping 空间裁剪}
+#
+b = st_sfc(st_point(c(0, 1)), st_point(c(1, 1))) # create 2 points
+b = st_buffer(b, dist = 1) # convert points to circles
+plot(b)
+text(x = c(-0.5, 1.5), y = 1, labels = c("x", "y")) # add text
+#
+x = b[1]
+y = b[2]
+x_and_y = st_intersection(x, y)
+plot(b)
+plot(x_and_y, col = "lightgrey", add = TRUE) # color intersecting area
+bb = st_bbox(st_union(x, y))
+box = st_as_sfc(bb)
+set.seed(2017)
+p = st_sample(x = box, size = 10)
+plot(box)
+plot(x, add = TRUE)
+plot(y, add = TRUE)
+plot(p, add = TRUE)
+text(x = c(-0.5, 1.5), y = 1, labels = c("x", "y"))
+
+sel_p_xy = st_intersects(p, x, sparse = FALSE)[, 1] &
+  st_intersects(p, y, sparse = FALSE)[, 1]
+p_xy1 = p[sel_p_xy]
+p_xy2 = p[x_and_y]
+identical(p_xy1, p_xy2)
+#> [1] TRUE
+```
+
+```{r Geometry unions 几何联合}
+# # 各州按方位进行分类 
+regions = aggregate(x = us_states[, "total_pop_15"], by = list(us_states$REGION),
+                    FUN = sum, na.rm = TRUE)
+regions2 = us_states %>% group_by(REGION) %>%
+  summarize(pop = sum(total_pop_15, na.rm = TRUE))
+plot(us_states)
+plot(regions2)
+# 创建联合的美国西部
+us_west = us_states[us_states$REGION == "West", ]
+us_west_union = st_union(us_west)
+plot(us_west_union)
+# 创建得克萨斯州西部
+texas = us_states[us_states$NAME == "Texas", ]
+texas_union = st_union(us_west_union, texas)
+plot(texas_union)
+```
+
+```{r Type transformations 类型转换}
+# st::st_cast 用该函数转换图形类型
+multipoint = st_multipoint(matrix(c(1, 3, 5, 1, 3, 1), ncol = 2))
+# multipoint to linestring or polygon
+linestring = st_cast(multipoint, "LINESTRING")
+polyg = st_cast(multipoint, "POLYGON")
+plot(multipoint)
+plot(linestring)
+plot(polyg)
+# 同 
+multipoint_2 = st_cast(linestring, "MULTIPOINT")
+multipoint_3 = st_cast(polyg, "MULTIPOINT")
+all.equal(multipoint, multipoint_2, multipoint_3)
+#> [1] TRUE
+# 
+multilinestring_list = list(matrix(c(1, 4, 5, 3), ncol = 2), 
+                            matrix(c(4, 4, 4, 1), ncol = 2),
+                            matrix(c(2, 4, 2, 2), ncol = 2))
+multilinestring = st_multilinestring((multilinestring_list))
+multilinestring_sf = st_sf(geom = st_sfc(multilinestring))
+multilinestring_sf
+plot(multilinestring_sf)
+#> Simple feature collection with 1 feature and 0 fields
+#> Geometry type: MULTILINESTRING
+#> Dimension:     XY
+#> Bounding box:  xmin: 1 ymin: 1 xmax: 4 ymax: 5
+#> CRS:           NA
+#>                             geom
+#> 1 MULTILINESTRING ((1 5, 4 3)...
+# 分成三条
+linestring_sf2 = st_cast(multilinestring_sf, "LINESTRING")
+linestring_sf2
+plot(linestring_sf2,col = rainbow(3))
+#> Simple feature collection with 3 features and 0 fields
+#> Geometry type: LINESTRING
+#> Dimension:     XY
+#> Bounding box:  xmin: 1 ymin: 1 xmax: 4 ymax: 5
+#> CRS:           NA
+#>                    geom
+#> 1 LINESTRING (1 5, 4 3)
+#> 2 LINESTRING (4 4, 4 1)
+#> 3 LINESTRING (2 2, 4 2)
+```
+
+```{r Geometric operations on raster data 栅格数据的几何运算}
+
+```
+
+```{r Geometric intersections 几何交点 裁切}
+data("elev", package = "spData")
+clip = raster(xmn = 0.9, xmx = 1.8, ymn = -0.45, ymx = 0.45,
+              res = 0.3, vals = rep(1, 9))
+elev[clip, drop = FALSE]
+#> class      : RasterLayer 
+#> dimensions : 2, 1, 2  (nrow, ncol, ncell)
+#> resolution : 0.5, 0.5  (x, y)
+#> extent     : 1, 1.5, -0.5, 0.5  (xmin, xmax, ymin, ymax)
+#> crs        : +proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0 
+#> source     : memory
+#> names      : layer 
+#> values     : 18, 24  (min, max)
+```
+
+```{r Extent and origin 扩展函数 原点函数}
+# 对齐栅格 处理大小不同
+data(elev, package = "spData")
+elev_2 = extend(elev, c(1, 2), value = 1000) # 添加行列 1行2列
+plot(elev)
+plot(elev_2)
+# 范围不同的两个栅格
+elev_3 = elev + elev_2
+#> Warning in elev + elev_2: Raster objects have different extents. Result for
+#> their intersection is returned
+plot(elev_3)
+# 将elev对象扩展到 elev_2 的范围
+elev_4 = extend(elev, elev_2)
+# origin 显示左上角坐标（对齐） 或修改左上角坐标
+origin(elev_4)
+# change the origin
+origin(elev_4) = c(0.25, 0.25)
+plot(elev_4)
+# and add the original raster
+plot(elev, add = TRUE)
+```
+
+```{r Aggregation and disaggregation 降低分辨率 增加分辨率}
+# 五倍降低分辨率 
+data("dem", package = "spDataLarge")
+dem_agg = aggregate(dem, fact = 5, fun = mean)
+plot(dem)
+plot(dem_agg)
+# bilinear：最近的四个像素中心插值填补
+dem_disagg = disaggregate(dem_agg, fact = 5, method = "bilinear")
+identical(dem, dem_disagg)# 对比原图和插值后是否相同
+plot(dem_disagg)
+#> [1] FALSE
+# Raster:resample() 一次性对齐多个属性
+# add 2 rows and columns, i.e. change the extent
+dem_agg = extend(dem_agg, 2)
+plot(dem)
+plot(dem_agg)
+dem_disagg_2 = resample(dem_agg, dem)
+plot(dem_disagg_2)
+# 数百数千个图像处理
+ #   gdalUtils::align_rasters()
+# 并行处理  请参阅帮助页面beginCluster()和clusteR()。此外，请查看 中的多核函数部分vignette("functions", package = "raster")。
+
+```
+
+```{r 5.4 Raster-vector interactions Raster-vector 交互}
+```
+
+```{r 5.4.1 Raster cropping Raster剪裁}
+# Cropping & Masking
+srtm = raster(system.file("raster/srtm.tif", package = "spDataLarge")) # 西南犹他海拔Raster数据
+zion = st_read(system.file("vector/zion.gpkg", package = "spDataLarge")) # 锡安国家公园vector数据（sf）
+zion = st_transform(zion, projection(srtm)) # 重新投影
+# Cropping 剪裁
+srtm_cropped = crop(srtm, zion) # 按照第二个的大小裁切第一个
+plot(srtm)
+plot(zion,add = T)
+plot(srtm_cropped)
+plot(zion,add = T)
+# Masking 屏蔽
+srtm_masked = mask(srtm, zion) #第二个之外的范围返回NA，屏蔽
+plot(srtm_masked)
+# inverse = TRUE 反向屏蔽
+srtm_inv_masked = mask(srtm, zion, inverse = TRUE)
+plot(srtm_inv_masked)
+```
+
+```{r 5.4.2 Raster extraction 栅格提取}
+data("zion_points", package = "spDataLarge") # 锡安国家公园三十个点
+zion_points1 = zion_points
+zion_points$elevation = raster::extract(srtm, zion_points)
+plot(srtm)
+plot(zion_points,add = T)
+                                        # 提取犹他海拔高程数据中以上三十个点的高程数据
+# 没看懂
+zion_points1$elevation_buffer = raster::extract(srtm, zion_points, buffer = 1000)
+plot(zion_points1)
+
+# line 线选择器
+# 代码创建了一条从锡安国家公园的西北到东南的直线 参见第2.2节
+zion_transect = cbind(c(-113.2, -112.9), c(37.45, 37.2)) %>%
+  st_linestring() %>% 
+  st_sfc(crs = projection(srtm)) %>% 
+  st_sf()
+plot(srtm)
+plot(zion_transect,add =T)
+# 海拔剖面
+transect = raster::extract(srtm, zion_transect, 
+                           along = TRUE, cellnumbers = TRUE)
+# along = TRUE和cellnumbers = TRUE参数沿路径返回单元格 ID 。结果是一个列表，其中第一列包含一个像元 ID 矩阵，第二列包含高程值
+# 将矩阵列表对象转换为一个简单的数据框，返回与每个提取的单元格关联的坐标，并找到沿横断面的关联距离
+transect_df = purrr::map_dfr(transect, as_data_frame, .id = "ID")
+#> Warning: `as_data_frame()` was deprecated in tibble 2.0.0.
+#> Please use `as_tibble()` instead.
+#> The signature and semantics have changed, see `?as_tibble`.
+transect_coords = xyFromCell(srtm, transect_df$cell)
+pair_dist = geosphere::distGeo(transect_coords)[-nrow(transect_coords)]
+transect_df$dist = c(0, cumsum(pair_dist))
+#
+zion_srtm_values = raster::extract(x = srtm, y = zion, df = TRUE) 
+```
+
+```{r Rasterization 光栅化}
+# rasterize() x 是要光栅化的vector y 是输出范围分辨率和CRS的Raster对象
+# 伦敦自行车租赁点的数据集
+
+cycle_hire_osm_projected = st_transform(cycle_hire_osm, 27700)
+raster_template = raster(extent(cycle_hire_osm_projected), resolution = 500,
+                         crs = st_crs(cycle_hire_osm_projected)$proj4string)
+# # 1 存在/不存在
+# ch_raster1 = rasterize(cycle_hire_osm_projected, raster_template, field = 1)
+# plot(ch_raster1)
+# # 2 每个里面几个
+# ch_raster2 = rasterize(cycle_hire_osm_projected, raster_template, 
+#                        field = 1, fun = "count")
+# plot(ch_raster2)
+# 3 每个栅格capacity
+ch_raster3 = rasterize(cycle_hire_osm_projected, raster_template, 
+                       field = "capacity", fun = sum)
+plot(ch_raster3)
+#
+# california = dplyr::filter(us_states, NAME == "California")
+# california_borders = st_cast(california, "MULTILINESTRING")
+# raster_template2 = raster(extent(california), resolution = 0.5,
+#                          crs = st_crs(california)$proj4string)
+# california_raster1 = rasterize(california_borders, raster_template2) 
+# california_raster2 = rasterize(california, raster_template2) 
+# fasterize::fasterize()
+```
+
+```{r 5.4.4 Spatial vectorization 空间矢量化}
+# 空间连续的数据转化为离散的数据
+
+```
+
+

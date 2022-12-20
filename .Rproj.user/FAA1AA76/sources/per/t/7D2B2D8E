@@ -1,0 +1,26 @@
+{
+    "id": "7D2B2D8E",
+    "path": "~/R/AIS_Processing/船舶排放清单.Rmd",
+    "project_path": "船舶排放清单.Rmd",
+    "type": "r_markdown",
+    "hash": "434467982",
+    "contents": "",
+    "dirty": false,
+    "created": 1652621428480.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "303,92",
+        "scrollLine": "0"
+    },
+    "folds": "69|11|220|0|\n224|11|226|0|\n229|14|301|0|\n",
+    "lastKnownWriteTime": 1652874956,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1653836537094,
+    "read_only": false,
+    "read_only_alternatives": []
+}

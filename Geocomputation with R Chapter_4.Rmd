@@ -1,0 +1,219 @@
+```{r 空间数据操作 Loaded packages 加载包}
+library(sf)
+library(raster)
+library(dplyr)
+library(spData)
+```
+
+```{r Spatial operations on vector data Vector的空间操作}
+# 新西兰 spData 中 canterbury 的数据
+canterbury = nz %>% filter(Name == "Canterbury")
+# 新西兰高程数据中有canterbury的deom的数据（canterbury范围内的高程数据）
+canterbury_height = nz_height[canterbury, ]
+# 新西兰canterbury之外的点
+nz_height = nz_height
+opposite_canterbury = nz_height[canterbury, , op = st_disjoint]   #  , ,包含所有列
+opposite_canterbury2 = nz_height[canterbury, 2, op = st_disjoint] # 只包含第二列
+```
+
+```{r 其它子集化方式}
+sel_sgbp = st_intersects(x = nz_height, y = canterbury)
+# 相交
+class(sel_sgbp)
+# 相交特征逻辑值
+sel_logical = lengths(sel_sgbp) > 0
+canterbury_height2 = nz_height[sel_logical, ]
+# 直接筛选
+canterbury_height3 = nz_height %>%
+  filter(st_intersects(x = ., y = canterbury, sparse = FALSE))
+```
+
+```{r  Topological relations 拓扑关系}
+# create a polygon
+a_poly = st_polygon(list(rbind(c(-1, -1), c(1, -1), c(1, 1), c(-1, -1))))
+a = st_sfc(a_poly)
+# create a line
+l_line = st_linestring(x = matrix(c(-1, -1, -0.5, 1), ncol = 2))
+l = st_sfc(l_line)
+# create points
+p_matrix = matrix(c(0.5, 1, -1, 0, 0, 1, 0.5, 1), ncol = 2)
+p_multi = st_multipoint(x = p_matrix)
+p = st_cast(st_sfc(p_multi), "POINT")
+
+# 各图形各点是否相交
+st_intersects(p, a)
+# 1为前两点返回结果 空为后两点返回结果
+# 类似于小于等于 =< 边缘也算作包含
+st_intersects(p, a, sparse = FALSE)
+# 输出一个矩阵，其中每一行代表目标对象中的一个特征，每列代表选择对象中的一个特征。
+# intersects的相反函数，返回空间上毫无关系的对象。[,1]返回vector
+st_disjoint(p, a, sparse = FALSE)[, 1]
+# 返回完全在范围内的对象
+st_within(p, a, sparse = FALSE)[, 1]
+# 返回在边界上的对象
+st_touches(p, a, sparse = FALSE)[, 1]
+# 在某范围内 第二行转化为逻辑值
+sel = st_is_within_distance(p, a, dist = 0.9) # can only return a sparse matrix
+lengths(sel) > 0
+```
+
+```{r Spatial joining空间连接}
+set.seed(2018) # set seed for reproducibility
+(bb_world = st_bbox(world)) # the world's bounds
+#>   xmin   ymin   xmax   ymax 
+#> -180.0  -90.0  180.0   83.6
+random_df = tibble(
+  x = runif(n = 10, min = bb_world[1], max = bb_world[3]),
+  y = runif(n = 10, min = bb_world[2], max = bb_world[4])
+)
+random_points = random_df %>% 
+  st_as_sf(coords = c("x", "y")) %>% # set coordinates
+  st_set_crs(4326) # set geographic CRS
+
+world_random = world[random_points, ]
+nrow(world_random)
+#> [1] 4
+random_joined = st_join(random_points, world["name_long"])
+```
+
+```{r Non-overlapping joins 非重叠连接}
+# 两个数据完全不重叠 但也可以实现连接
+plot(st_geometry(cycle_hire), col = "blue")    # 官方数据London自行车组零点的分布
+plot(st_geometry(cycle_hire_osm), add = TRUE, pch = 3, col = "red")# OpenStreetmap 提供的自行车租赁的数据
+# 检查是否有重叠
+any(st_touches(cycle_hire, cycle_hire_osm, sparse = FALSE))
+# 投影CRS
+cycle_hire_P = st_transform(cycle_hire, 27700) # projected of cycle_hire 投影
+cycle_hire_osm_P = st_transform(cycle_hire_osm, 27700) # projected of cycle_hire_osm
+sel = st_is_within_distance(cycle_hire_P, cycle_hire_osm_P, dist = 20)
+summary(lengths(sel) > 0)
+# 特定阈值内的重复数量
+z = st_join(cycle_hire_P, cycle_hire_osm_P,
+            join = st_is_within_distance, dist = 20)
+nrow(cycle_hire)
+#> [1] 742
+nrow(z)
+#> [1] 762
+# 请注意，连接结果中的行数大于目标。这是因为 中的某些自行车租赁站在 中cycle_hire_P具有多个匹配项cycle_hire_osm_P
+
+# 聚合方法，生成与目标行数相同的对象：
+z = z %>% 
+  group_by(id) %>% 
+  summarize(capacity = mean(capacity))
+nrow(z) == nrow(cycle_hire)
+# 附近站点容量和原图进行对比
+plot(cycle_hire_osm["capacity"])
+plot(z["capacity"])
+```
+
+```{r Spatial data aggregation 空间数据聚合 没看懂}
+head(nz_height,3)
+head(nz,3)
+nz_avheight = aggregate(x = nz_height, by = nz, FUN = mean)
+plot(nz_avheight)
+
+nz_avheight2 = nz %>%
+  st_join(nz_height) %>%
+  group_by(Name) %>%
+  summarize(elevation = mean(elevation, na.rm = TRUE))
+# 空间同构是一个与空间聚合有关的重要概念。如果一个聚集对象（我们称之为y）与目标对象（x）有共同的边界，那么这两个对象就是一致的。
+# 行政边界数据通常是这种情况 不一致的空间聚合对象没有相同的边界，使用面积插值将值从一组面积单位转移到另一组面积单位来解决
+
+# 加权空间插值
+incongruent <- incongruent 
+aggregating_zones <- aggregating_zones
+plot(incongruent)
+plot(aggregating_zones)
+agg_aw = st_interpolate_aw(incongruent[, "value"], aggregating_zones,
+                           extensive = TRUE)
+agg_aw$value
+plot(agg_aw)
+```
+
+```{r Distance relations 距离关系}
+nz_heighest = nz_height %>% top_n(n = 1, wt = elevation) # 新西兰最高点
+canterbury_centroid = st_centroid(canterbury) # canterbury 
+st_distance(nz_heighest, canterbury_centroid) #两处geom distance
+# 单位m 并且 以矩阵返回
+co = filter(nz, grepl("Canter|Otag", Name))# 还能这样筛选的吗
+st_distance(nz_height[1:3, ], co) # Canter & Otag 与 高程表里前三个地点的距离
+#第二个点和第三个点都在该区域 所以距离为0
+plot(st_geometry(co)[2],reset = F)
+plot(st_geometry(nz_height)[2:3], add = TRUE)
+```
+
+```{r Spatial operations on raster data Raster数据的空间操作}
+# 通过坐标查询cell值
+id = cellFromXY(elev, xy = c(0.1, 0.1))
+elev[id]
+# the same as
+raster::extract(elev, data.frame(x = 0.1, y = 0.1))
+# 一个Raster也可以是另一个Raster的子集
+clip = raster(xmn = 0.9, xmx = 1.8, ymn = -0.45, ymx = 0.45,
+              res = 0.3, vals = rep(1, 9))
+elev[clip]
+# 同extract(elev, extent(clip))
+plot(elev)
+plot(clip,add = T,col = 'red')
+
+elev[1:2, drop = FALSE]    # spatial subsetting with cell IDs
+elev[1, 1:2, drop = FALSE] # spatial subsetting by row,column indices
+# 掩码
+# create raster mask
+rmask = elev 
+values(rmask) = sample(c(NA, TRUE), 36, replace = TRUE)
+
+# spatial subsetting
+elev[rmask, drop = FALSE]           # with [ operator
+mask(elev, rmask)                   # with mask()
+overlay(elev, rmask, fun = "max")   # with overlay
+```
+
+```{r Map algebra 地图代数}
+# Local operations 本地操作
+# reclassification matrix 重分类矩阵
+rcl = matrix(c(0, 12, 1, 12, 24, 2, 24, 36, 3), ncol = 3, byrow = TRUE)
+# 0-12  范围 为 1
+# 12-24 范围 为 2
+# 24-36 范围 为 3
+recl = reclassify(elev, rcl = rcl)
+plot(elev)
+# Raster 支持数学运算 支持逻辑运算
+elev + elev + elev
+elev^2
+log(elev)
+elev > 5
+```
+
+```{r Focal operations 焦点操作 spatial filtering and convolution 滤波和卷积 focal}
+# 空间过滤 focal() 3X3矩阵中找到最小值作为过滤结果 （平滑过滤器 消除极端值）
+r_focal = focal(elev, w = matrix(1, nrow = 3, ncol = 3), fun = min)
+```
+
+```{r Zonal operations 区域操作 zonal}
+# 不同等级土壤类型的平均环境高度
+z = zonal(elev, grain, fun = "mean") %>%
+  as.data.frame()
+z
+#>   zone mean
+#> 1    1 17.8
+#> 2    2 18.5
+#> 3    3 19.2
+```
+
+```{r Global operations and distances 全局操作和距离}
+```
+
+```{r Map algebra counterparts in vector processing 矢量处理中的地图代数对应关系}
+```
+
+```{r Raster合并}
+# 下载Austria 和 Switzerland的高程数据 合并两个Raster
+aut = getData("alt", country = "AUT", mask = TRUE)
+ch = getData("alt", country = "CHE", mask = TRUE)
+aut_ch = merge(aut, ch)
+# Raster的merge()命令组合两个图像，如果它们重叠，它使用第一个光栅的值。可以使用gdalUtils::mosaic_rasters()更快的方式执行完全相同的操作
+```
+
+
+

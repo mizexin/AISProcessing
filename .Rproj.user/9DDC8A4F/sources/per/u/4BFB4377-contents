@@ -1,0 +1,32 @@
+# Suggestion by AndreaPi (issue #19)
+
+library(tidyverse)
+library(tidycovid19)
+library(zoo)
+
+df <- download_merged_data(cached = TRUE, silent = TRUE)
+
+df %>%
+  filter(iso3c == "USA") %>%
+  mutate(
+    new_cases = confirmed - lag(confirmed),
+    ave_new_cases = rollmean(new_cases, 7, na.pad=TRUE, align="right")
+  ) %>%
+  filter(!is.na(new_cases), !is.na(ave_new_cases)) %>%
+  ggplot(aes(x = date)) +
+  geom_bar(aes(y = new_cases), stat = "identity", fill = "lightblue") +
+  geom_line(aes(y = ave_new_cases), color ="red") +
+  theme_minimal()
+
+df <- tidycovid19_variable_definitions %>%
+  select(var_name, var_def)
+kable(df) %>% kableExtra::kable_styling()
+#remotes::install_github("joachim-gassen/tidycovid19")
+
+library(tidycovid19)
+
+merged <- download_merged_data(cached = TRUE, silent = TRUE)
+plot_covid19_spread(
+  merged, highlight = c("ITA", "ESP", "GBR", "FRA", "DEU", "USA", "BRA", "MEX"),
+  intervention = "lockdown", edate_cutoff = 330
+)

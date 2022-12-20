@@ -1,0 +1,26 @@
+{
+    "id": "EE159830",
+    "path": "~/R/AIS_Processing/test_realship_validation.R",
+    "project_path": "test_realship_validation.R",
+    "type": "r_source",
+    "hash": "3232661754",
+    "contents": "",
+    "dirty": false,
+    "created": 1649762882982.0,
+    "source_on_save": false,
+    "relative_order": 12,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "75,0",
+        "scrollLine": "70"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1649949838,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1649949838090,
+    "read_only": false,
+    "read_only_alternatives": []
+}

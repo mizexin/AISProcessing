@@ -1,0 +1,51 @@
+﻿gen,engineType,fuelType,EF
+1,SSD,HFO,1.4
+1,SSD,MDO,0.18
+1,MSD,HFO,1.4
+1,MSD,MDO,0.18
+1,HSD,HFO,1.4
+1,HSD,MDO,0.17
+1,Gas Turbines,HFO,1.42
+1,Gas Turbines,MDO,0.15
+1,Steam Turbines (and boilers),HFO,1.42
+1,Steam Turbines (and boilers),MDO,0.14
+1,Steam Turbines (and boilers),LNG,0.03
+1,Auxiliary engines,HFO,1.4
+1,Auxiliary engines,MDO,0.17
+2,SSD,HFO,1.39
+2,SSD,MDO,0.18
+2,MSD,HFO,1.39
+2,MSD,MDO,0.18
+2,HSD,HFO,1.4
+2,HSD,MDO,0.18
+2,"LNG-Otto (dual-fuel, medium-speed)",LNG,0.02
+2,LBSI,LNG,0.02
+2,Gas Turbines,HFO,1.42
+2,Gas Turbines,MDO,0.15
+2,Steam Turbines (and boilers),HFO,1.42
+2,Steam Turbines (and boilers),MDO,0.14
+2,Steam Turbines (and boilers),LNG,0.03
+2,Auxiliary engines,HFO,1.4
+2,Auxiliary engines,MDO,0.18
+2,Auxiliary engines,LNG,0.02
+3,SSD,HFO,1.39
+3,SSD,MDO,0.19
+3,SSD,MeOH,0.14
+3,MSD,HFO,1.39
+3,MSD,MDO,0.18
+3,MSD,MeOH,0.14
+3,HSD,HFO,1.39
+3,HSD,MDO,0.18
+3,"LNG-Otto (dual-fuel, slow-speed)",LNG,0.02
+3,"LNG-Otto (dual-fuel, medium-speed)",LNG,0.02
+3,LNG-Diesel (dual-fuel),LNG,0.01
+3,LBSI,LNG,0.02
+3,Gas Turbines,HFO,1.42
+3,Gas Turbines,MDO,0.15
+3,Gas Turbines,LNG,0.03
+3,Steam Turbines (and boilers),HFO,1.42
+3,Steam Turbines (and boilers),MDO,0.14
+3,Steam Turbines (and boilers),LNG,0.03
+3,Auxiliary engines,HFO,1.39
+3,Auxiliary engines,MDO,0.18
+3,Auxiliary engines,LNG,0.02

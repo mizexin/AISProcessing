@@ -1,0 +1,55 @@
+library(dplyr)
+library(data.table)
+mmsis1=data.table(data.table(dir('~/AIS/2019_year_container/'))[,mmsi:=tstrsplit(V1,'.',fixed = TRUE)[1]]$mmsi)
+
+mmsis2=data.table(data.table(dir('~/AIS/2020_year_container/'))[,mmsi:=tstrsplit(V1,'.',fixed = TRUE)[1]]$mmsi)
+
+ships=rbind(mmsis1,mmsis2)
+colnames(ships)='MMSI'
+rm(mmsis1,mmsis2)
+ships = unique(ships)
+ships$MMSI=as.integer(ships$MMSI)
+# fwrite(ships,'/Users/mizexin/Desktop/MMSIS.csv')
+# # 2019 2020 共10130船次 共计5357条船 IHS查询得到3516条船泊数据
+# 
+# p11=fread('/Users/mizexin/Downloads/Ship1Part1.csv')
+# p12=fread('/Users/mizexin/Downloads/Ship1Part2.csv')
+# p21=fread('/Users/mizexin/Downloads/Ship2Part1.csv')
+# p22=fread('/Users/mizexin/Downloads/Ship2Part2.csv')
+# p31=fread('/Users/mizexin/Downloads/Ship3Part1.csv')
+# p32=fread('/Users/mizexin/Downloads/Ship3Part2.csv')
+# a = cbind(p11,p12)
+# b = cbind(p21,p22)
+# c = cbind(p31,p32)
+# all = rbind(a,b,c)
+# s  = all[,1] == all[,14]
+# fwrite(all,'/Users/mizexin/Desktop/IHS参数.csv')
+
+# ships是19、20年所有船舶MMSI去重
+# 导入IHS数据
+    IHS = fread('/Users/mizexin/AIS/IHS_Data.csv',select = 'MMSI')
+# IHS$MMSI = as.integer(IHS$MMSI)
+#   添加一列IHS检查列
+    IHS$IHScheck = 'IHS'
+# 导入Hifleet 只选择MMSI列 其他都没要
+Hifleet=fread("/Users/mizexin/R/AIS_Processing/carbon-main/data/hifleetships_brief_container_for_student.csv",select = 'mmsi',col.names = 'MMSI')
+# 去掉Hifleet中的NA
+Hifleet=na.omit(Hifleet)
+# Hifleet$MMSI = as.integer(Hifleet$MMSI)
+# 添加 Hifleet检查列
+Hifleet$Hifcheck = 'Hif'
+# IHS join 所有船 MMSI
+IHS_join_ships = left_join(ships,IHS,'MMSI')
+# 统计 NA 也就是没有IHS检查标记的行  1841 行
+colSums(is.na(IHS_join_ships))
+# 保留join后 标记为NA的行 也就是未匹配成功的MMSI
+a = IHS_join_ships[!complete.cases(IHS_join_ships),]
+# 以MMSI为准与Hifleet join
+b = left_join(a,Hifleet,'MMSI')
+# 去重
+b = unique(b)
+# 去掉IHS标记 保留Hifleet标记
+b = b[,-2]
+# 这时没有NA了
+colSums(is.na(b))
+c = b[!complete.cases(b),]

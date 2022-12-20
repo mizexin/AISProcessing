@@ -1,0 +1,27 @@
+{
+    "id": "76E33FC8",
+    "path": "~/R/AIS_Processing/宁波图.R",
+    "project_path": "宁波图.R",
+    "type": "r_source",
+    "hash": "3974215207",
+    "contents": "",
+    "dirty": false,
+    "created": 1648961821333.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "11,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1650291629,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1650291629432,
+    "read_only": false,
+    "read_only_alternatives": []
+}

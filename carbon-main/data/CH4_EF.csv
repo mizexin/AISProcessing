@@ -1,0 +1,22 @@
+engineType,fuelType,EF
+SSD,HFO,0.01
+SSD,MDO,0.01
+SSD,MeOH,0.01
+MSD,HFO,0.01
+MSD,MDO,0.01
+MSD,MeOH,0.01
+HSD,HFO,0.01
+HSD,MDO,0.01
+LNG-Otto_(dual-fuel_medium-speed),LNG,5.5
+LNG-Otto_(dual-fuel_slow-speed),LNG,2.5
+LNG-Diesel_(dual-fuel),LNG,0.2
+LBSI,LNG,4.1
+Gas Turbines,HFO,0.002
+Gas Turbines,MDO,0.002
+Gas Turbines,LNG,0.06
+Steam Turbines (and boilers),HFO,0.002
+Steam Turbines (and boilers),MDO,0.002
+Steam Turbines (and boilers),LNG,0.04
+Auxiliary engines,HFO,0.01
+Auxiliary engines,MDO,0.01
+Auxiliary engines,LNG,

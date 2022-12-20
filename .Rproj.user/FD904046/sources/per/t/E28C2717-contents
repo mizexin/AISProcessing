@@ -1,0 +1,30 @@
+library(data.table)
+library(doParallel)
+dir = "~/AIS/2019-stop-result" 
+file_list = list.files(path = dir, recursive = T, include.dirs = TRUE, full.names = T)
+file_num <- length(file_list)
+cl=makeCluster(10)
+registerDoParallel(cl)
+
+# for (i in 1:file_num) {
+x<-foreach(i=1:file_num,.packages=c('data.table')) %dopar% {
+  aresult=fread(paste(file_list[i],sep = ''),
+             select =c("mmsi","imo","deadweight","distnm","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC"))
+  print(i)
+  dt = as.data.table(lapply(aresult[,4:37],sum))
+  dt=dt[,mmsi:=aresult[1,1]][,imo:=aresult[1,2]][,deadweight:=aresult[1,3]]
+  dt=dt[,Total_FC:=sum(dt$ME_FC,dt$AE_FC,dt$AB_FC)]
+  dt=dt[,Total_CO2:=sum(dt$ME_CO2,dt$AE_CO2,dt$AB_CO2)]
+  dt=dt[,Total_SOx:=sum(dt$ME_SOx,dt$AE_SOx,dt$AB_SOx)]
+  dt=dt[,Total_BC:=sum(dt$ME_BC,dt$AE_BC,dt$AB_BC)]
+  dt=dt[,Total_NOx:=sum(dt$ME_NOx,dt$AE_NOx,dt$AB_NOx)]
+  dt=dt[,Total_CH4:=sum(dt$ME_CH4,dt$AE_CH4,dt$AB_CH4)]
+  dt=dt[,Total_N2O:=sum(dt$ME_N2O,dt$AE_N2O,dt$AB_N2O)]  
+  dt=dt[,Total_PM10:=sum(dt$ME_PM10,dt$AE_PM10,dt$AB_PM10)]
+  dt=dt[,Total_PM2.5:=sum(dt$ME_PM2.5,dt$AE_PM2.5,dt$AB_PM2.5)]
+  dt=dt[,Total_NVMOC:=sum(dt$ME_NVMOC,dt$AE_NVMOC,dt$AB_NVMOC)]
+  dt=dt[,Total_NVMOC:=sum(dt$ME_NVMOC,dt$AE_NVMOC,dt$AB_NVMOC)]
+  dt=dt[,No:=i]
+  fwrite(rbind(dt),'~/Desktop/论文数据/2019.csv',sep = ',',append = T)
+}
+stopCluster(cl)
