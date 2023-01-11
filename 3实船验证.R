@@ -5,8 +5,8 @@ ship_report_2019=fread('/Users/mizexin/论文数据/china_2019_container_fuel_re
   select =c("IMO Number","Deadweight tonnage","Distance travelled","Hours underway","Quantity"))%>%
   rename(.,'imo'='IMO Number','deadweight'='Deadweight tonnage','dist'='Distance travelled','hours'='Hours underway','quantity'='Quantity')
 
-ship_result=fread('/Users/mizexin/论文数据/2019.csv',
-                  select =c("imo","Total_FC","distnm","gap_hours"))%>%na.omit(.)
+ship_result=fread('/Volumes/Samsung\ SSD/汇总结果/fix/2019.csv',
+                  select =c("imo","Total_FC","distnm","durhour"))%>%na.omit(.)
 ship_result$Total_FC=ship_result$Total_FC/1000000
 quantity = aggregate(quantity ~ imo, data = ship_report_2019,sum)
 

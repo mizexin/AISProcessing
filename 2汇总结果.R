@@ -34,10 +34,13 @@ opts <- list(progress=progress)
 #sum by ship=============================
 x<-foreach(i=1:file_num,.packages=c('data.table'),.options.snow=opts,.combine=rbind) %dopar% {
   aresult=fread(paste(file_list[i],sep = ','),
-             select =c("mmsi","imo","deadweight","capacity","distnm","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC","gap_hours"))
+             select =c("mmsi","imo","deadweight","capacity","distnm","durhour","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC"))
   print(i)
+  if(nrow(aresult) != 0)
+  {
   dt = as.data.table(lapply(aresult[,5:39],sum,na.rm=TRUE))
   dt=dt[,mmsi:=aresult[1,1]][,imo:=aresult[1,2]][,deadweight:=aresult[1,3]][,capacity:=aresult[1,4]]
+  dt=dt[,Total_Hours:=sum(dt$durhour)]
   dt=dt[,Total_FC:=sum(dt$ME_FC,dt$AE_FC,dt$AB_FC)]
   dt=dt[,Total_CO2:=sum(dt$ME_CO2,dt$AE_CO2,dt$AB_CO2)]
   dt=dt[,Total_SOx:=sum(dt$ME_SOx,dt$AE_SOx,dt$AB_SOx)]
@@ -50,24 +53,48 @@ x<-foreach(i=1:file_num,.packages=c('data.table'),.options.snow=opts,.combine=rb
   dt=dt[,Total_NMVOC:=sum(dt$ME_NMVOC,dt$AE_NMVOC,dt$AB_NMVOC)]
   dt=dt[,No:=i]
   # fwrite(rbind(dt),paste('/Users/mizexin/论文数据/',AIS_year,'.csv',sep = ''),sep = ',',append = T)
-  fwrite(rbind(dt),paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'.csv'),sep = ',',append = T)
-}
+  fwrite(rbind(dt),paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'.csv',sep=''),sep = ',',append = T)
+}}
 stopCluster(cl)
 
 #sum by day=============================
 x<-foreach(i=1:file_num,.packages=c('data.table','dplyr'),.options.snow=opts,.combine=rbind) %dopar% {
   aresult=fread(paste(file_list[i],sep = ','),
-                select =c("mmsi","imo","deadweight","capacity","yday","distnm","gap_hours","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC"))
+                select =c("mmsi","imo","deadweight","capacity","yday","distnm","durhour","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC"))
   
   if(nrow(aresult) != 0)
   {
     dt = as.data.table(aggregate(aresult[,6:40],by=list(aresult$yday),sum)%>%
                          rename(.,'yday'= 'Group.1'))
     dt = dt[,FC:=ME_FC+AE_FC+AB_FC][,CO2:=ME_CO2+AE_CO2+AB_CO2][,SOx:=ME_SOx+AE_SOx+AB_SOx][,BC:=ME_BC+AE_BC+AB_BC][,NOx:=ME_NOx+AE_NOx+AB_NOx][,CH4:=ME_CH4+AE_CH4+AB_CH4][,N2O:=ME_N2O+AE_N2O+AB_N2O][,PM10:=ME_PM10+AE_PM10+AB_PM10][,PM2.5:=ME_PM2.5+AE_PM2.5+AB_PM2.5][,NMVOC:=ME_NMVOC+AE_NMVOC+AB_NMVOC]
-    dt0 = dt[,.(yday,distnm,gap_hours,FC,CO2,SOx,BC,NOx,CH4,N2O,PM10,PM2.5,NMVOC)]
-    
-    fwrite(rbind(dt0),paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'yday.csv'),sep = ',',append = T)
-}  }
+    dt0 = dt[,.(yday,distnm,durhour,FC,CO2,SOx,BC,NOx,CH4,N2O,PM10,PM2.5,NMVOC)]
+
+    fwrite(rbind(dt0),paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'yday.csv',sep = ''),sep = ',',append = T)
+  }  }
+
 stopCluster(cl)
 
+#sum by hours=============================
+x<-foreach(i=1:file_num,.packages=c('data.table','dplyr'),.options.snow=opts,.combine=rbind) %dopar% {
+  aresult=fread(paste(file_list[i],sep = ','),
+                select =c("mmsi","imo","deadweight","capacity","yday","yhour","distnm","durhour","ME_FC","AE_FC","AB_FC","ME_CO2","AE_CO2","AB_CO2","ME_SOx","AE_SOx","AB_SOx","ME_BC","AE_BC","AB_BC","ME_NOx","AE_NOx","AB_NOx","ME_CH4","AE_CH4","AB_CH4","ME_CO","AE_CO","AB_CO","ME_N2O","AE_N2O","AB_N2O","ME_PM10","AE_PM10","AB_PM10","ME_PM2.5","AE_PM2.5","AB_PM2.5","ME_NMVOC","AE_NMVOC","AB_NMVOC"))
+  
+  if(nrow(aresult) != 0)
+  {
+    dt = as.data.table(aggregate(aresult[,7:41],by=list(aresult$yhour),sum)%>%
+                         rename(.,'yhour'= 'Group.1'))
+    dt = dt[,FC:=ME_FC+AE_FC+AB_FC][,CO2:=ME_CO2+AE_CO2+AB_CO2][,SOx:=ME_SOx+AE_SOx+AB_SOx][,BC:=ME_BC+AE_BC+AB_BC][,NOx:=ME_NOx+AE_NOx+AB_NOx][,CH4:=ME_CH4+AE_CH4+AB_CH4][,N2O:=ME_N2O+AE_N2O+AB_N2O][,PM10:=ME_PM10+AE_PM10+AB_PM10][,PM2.5:=ME_PM2.5+AE_PM2.5+AB_PM2.5][,NMVOC:=ME_NMVOC+AE_NMVOC+AB_NMVOC]
+    dt0 = dt[,.(yhour,distnm,durhour,FC,CO2,SOx,BC,NOx,CH4,N2O,PM10,PM2.5,NMVOC)]
+    
+    fwrite(rbind(dt0),paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'yhour.csv',sep = ''),sep = ',',append = T)
+  }  }
+
+stopCluster(cl)
+
+dt2=fread(paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'yhour.csv',sep = ''),sep = ',',fill = T)
+dt2=na.omit(dt2)
+
+dt3 = as.data.table(aggregate(dt2[,2:13],by=list(dt2$yhour),sum)%>%
+                      rename(.,'yhour'= 'Group.1'))
+fwrite(dt3,paste('/Volumes/Samsung\ SSD/汇总结果/fix/',AIS_year,'yhour_sum.csv',sep = ''),sep = ',')
 

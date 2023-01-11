@@ -2,7 +2,6 @@ library(readxl)
 library(hrbrthemes)
 library(lubridate)
 library(mapdeck)
-library(data.table)
 library(dplyr)
 library(data.table)
 library(circular)
@@ -11,86 +10,95 @@ library(ggplot2)
 library(doSNOW)
 library(tcltk)
 library(doParallel)
+library(stats)
+
+setDTthreads(threads = 10)
+
 AIS_year ='2020'
-source('/Users/mizexin/R/AIS_Processing/functions2020-copy.R')
-ships_static_data = fread('/Users/mizexin/论文数据/FIX_ships_static_data.csv')%>%rename(.,'main_eng_type'= 'engine_type','stroke' = 'engine_stroke_type')
+
+source('/Users/mizexin/R/AISProcessing/functions2020-copy.R')
+
+ships_static_data              =  fread('/Users/mizexin/论文数据/FIX_ships_static_data.csv')%>%rename(.,'main_eng_type'= 'engine_type','stroke' = 'engine_stroke_type')
 ships_static_data[grep(pattern = "Container",ship_type) ,ship_type:='Container']
-AE_AB_Power = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_17_Auxiliary_engine_boiler_power_output.csv')#%>%clean_names()
-baseSFC = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_19_baseSFC.csv')
-CO2table = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_45_CO2_EF.csv')
-LLAtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO_LowLoadAdjustmentFactors.csv')
-SOxtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_47_SOx_EF.csv')
-ME_BCtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_63_BC_EF_forME.csv') %>% distinct()#重复行导致报错
-AE_AB_BCtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_64_BC_EF_forAE.csv')
-NOxtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_50_NOx_EF.csv')
-CH4table = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_Appendix_B_table_6_CH4_EF.csv')
-COtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_57_CO_EF.csv')
-N2Otable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_59_N2O_EF.csv')
-PM10table = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_52_PM10_EF.csv')
-PM2.5table = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_52_PM2.5_EF.csv')
-NMVOCtable = fread('~/R/AIS_Processing/carbon-main/data/IMO4_table/IMO4_table_61_NMVOC_EF.csv')
+AE_AB_Power                    = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_17_Auxiliary_engine_boiler_power_output.csv')#%>%clean_names()
+baseSFC                        = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_19_baseSFC.csv')
+CO2table                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_45_CO2_EF.csv')
+LLAtable                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO_LowLoadAdjustmentFactors.csv')
+SOxtable                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_47_SOx_EF.csv')
+ME_BCtable                     = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_63_BC_EF_forME.csv') %>% distinct()#重复行导致报错
+AE_AB_BCtable                  = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_64_BC_EF_forAE.csv')
+NOxtable                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_50_NOx_EF.csv')
+CH4table                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_Appendix_B_table_6_CH4_EF.csv')
+COtable                        = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_57_CO_EF.csv')
+N2Otable                       = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_59_N2O_EF.csv')
+PM10table                      = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_52_PM10_EF.csv')
+PM2.5table                     = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_52_PM2.5_EF.csv')
+NMVOCtable                     = fread('~/R/AISProcessing/carbon-main/data/IMO4_table/IMO4_table_61_NMVOC_EF.csv')
 
 # ships AIS data ctalog
-dir = paste("~/AIS/",AIS_year,"_year_container",sep = '')
-file_list = list.files(path = dir, recursive = T, include.dirs = TRUE, full.names = T)#%>%sub('\\.csv$', '',.)
-file_num <- length(file_list)
+dir       <-  paste("~/AIS/",AIS_year,"_year_container",sep = '')
+file_list <-  list.files(path = dir, recursive = T, include.dirs = TRUE, full.names = T)#%>%sub('\\.csv$', '',.)
+file_num  <- length(file_list)
 
-cl=makeCluster(12)
+cl=makeCluster(10)
 registerDoParallel(cl)
 
 x<-foreach(i=1:file_num,.packages=c('data.table','dplyr','lubridate','circular')) %dopar% {
-             agroup=fread(paste(file_list[i],sep = ''),select = c('mmsi','time','speed','lon','lat') ,
-                          # agroup=fread(paste("/Users/mizexin/AIS/2019_year_container/209006000.csv",sep = '')
+             agroup=fread(paste(file_list[i],sep = ''),select = c('mmsi','time','speed','lon','lat'),
+                          # agroup=fread(paste("/Users/mizexin/AIS/2020_year_container/219036000.csv",sep = '')
                           #              ,select = c('mmsi','time','speed','lon','lat'),
                           col.names = c('mmsi','time','sog','lon','lat'))
              mmsis=agroup[,.N,mmsi]$mmsi
              k=length(mmsis)
-             
-             if (nrow(agroup) >= 2 ) {
-               
-               
-               for (j in seq(1,k))
-               {
-                 print(paste('j=',j))
-                 
+
+              if (nrow(agroup) >= 2 ) {
+              
+                for (j in seq(1,k)) {
+                  
                  ammsi=mmsis[j] #单跑改k j
+                 
                  aship=agroup[mmsi==ammsi]
+                 
                  aship=distinct(aship)[,list(mmsi,time,sog,lon=lon/1000000,lat=lat/1000000)]
+                 
                  aship=data.table(addDateTime(aship))
+                 
                  aship=aship[order(aship$datetime),]
+                 
                  lines=getLines(aship)
+                 
                  speedlines=getLineSpeed(lines)
-                 abnormallines=getAbnormalLine(speedlines) # 通过调整这个参数了是被异常线段，超过limit1且平均航速小于3节，或者 大雨limit2 都为异常。另一个条件是航速超过37.5也为异常
-                 abnormallines[isabnormal>0]#提取异常线段中的开始和结束时间
+                 
+                 abnormallines=getAbnormalLine(speedlines) # 通过调整这个参数了异常线段，超过limit1且平均航速小于3节，或者 大雨limit2 都为异常。另一个条件是航速超过37.5也为异常
+                 # abnormallines[isabnormal>0]#提取异常线段中的开始和结束时间
                  ablines=abnormallines[isabnormal>0][,list(datetime1,datetime2)] #提取异常线段两个端点的时间
-                 #天插值
-                 ashipdt2=add_day_point(aship[,list(mmsi,time=time1,sog=sog1,lon=lon1,lat=lat1,datetime=datetime1)])
-                 #去除异常线段中的插值，之后就可以按照原来的程序计算排放了
-                 aship3=ashipdt2[!(isaddedday>0&inrange(datetime,ablines$datetime1,ablines$datetime2))]
-                 aship3=aship3[,hour:=lubridate::hour(datetime)][,day:=lubridate::day(datetime)][,week:=lubridate::week(datetime)][,month:=lubridate::month(datetime)][,yyear:=lubridate::year(datetime)][,yday:=yday(datetime)]%>%distinct(datetime, .keep_all = TRUE)
+              
+                 aship=add_day_point(aship[,list(mmsi,time=time1,sog=sog1,lon=lon1,lat=lat1,datetime=datetime1)])
+
+                 # 去除异常线段中的插值，之后就可以按照原来的程序计算排放了
+                 aship=aship[!(isaddedday>0&inrange(datetime,ablines$datetime1,ablines$datetime2))]
+
+                 # aship=aship[!(inrange(datetime,ablines$datetime1,ablines$datetime2))]
                  
-                 aship=aship3[lon<=180][sog>=0][yyear == AIS_year][,lon:=as.numeric(lon)][,lat:=as.numeric(lat)]
-                 aship=aship[,yhour:=hour+(yday-1)*24]
+                 aship=AddInfo(aship)
                  
-                 aship=aship[,dur:=shift(datetime,-1)-datetime][,dur:=as.integer(dur)]#单位s
-                 # aship=aship[,dur:=datetime-shift(datetime,1)][,dur:=as.integer(dur)]
-                 aship=aship[,gap_hours:=(dur/3600)%>%round(.,2)]
+                 aship=aship[!((durhour>=72&avgspeed<3)|durhour>=240|avgspeed>=37.5)]
+                 #aship[durhour>400]
                  
-                 aship=aship[,lon2:=shift(lon,-1)][,lat2:=shift(lat,-1)][!is.na(lon2)][,speedid:=round(as.numeric(sog/10))]#
+                 aship=SplitTimeFormat(aship)
                  
-                 # 经纬度距离 m
-                 aship=aship[,dist:=round(distance(lon,lat,lon2,lat2))]
+                 aship=aship[lon<=180][sog>=0][yyear == AIS_year][,lon:=as.numeric(lon)][,lat:=as.numeric(lat)]
+
+                 aship=aship[,speedrate:=avgspeed/20] # 设计航速 20
                  
-                 # qplot(aship$lon,aship$lat)
-                 aship=aship[,avgspeed:=round(dist/1852*3600/dur,2)][,speedrate:=avgspeed/20] # 设计航速 20
                  # 5海里以上 超过两倍的平均航速
-                 # aship=aship[-which(dist>5*1852&speedrate>2)]
-                 aship=aship[!(dist>5*1852&speedrate>2)]
                  
-                 aship=aship[!(avgspeed < 3 & gap_hours > 72)]
+                 aship=aship[!(distnm>=5&speedrate>=2)]
                  
-                 aship=aship[gap_hours >24,speedid:=avgspeed]
-                 aship=aship[,hours:=round(dur/3600,2)][,distnm:=round(dist/1852,2)][,speed:=speedid]
+                 # aship=aship[!(avgspeed < 3 & durhour > 72)]
+                 
+                 aship=aship[,hours:= durhour][,speed:=avgspeed]
+                 
                  aship=left_join(aship,ships_static_data,by='mmsi')
                  
                  test0=aship[,loadFactor:=round((0.62)^0.66*((speed)/(service_speed/0.94))^3,2)/0.867/0.917][loadFactor>1,loadFactor:=1][,load_bin:=round(loadFactor*100)][load_bin>20,load_bin:=20][load_bin<2,load_bin:=2]
@@ -235,7 +243,6 @@ x<-foreach(i=1:file_num,.packages=c('data.table','dplyr','lubridate','circular')
                  test0=test0[,ME_SOx:=ME_FC*ME_SOxEF*SOx_LLA][,AE_SOx:=AE_FC*AE_SOxEF][,AB_SOx:=AB_FC*AB_SOxEF]
                  #黑炭
                  test0=test0[,BC_load_bin:=floor(loadFactor*10)+2][loadFactor<0.05,BC_load_bin:=1][loadFactor>=1,BC_load_bin:=11]
-                 #test0=test0[,stroke:=2]#假设二冲程
                  test0=ME_BCtable[,list(BC_load_bin,main_eng_type=EngineType,main_fuel_type=FuelType,stroke,ME_BC_EFf)][test0,on=.(BC_load_bin,main_eng_type,main_fuel_type,stroke)]
                  test0=test0[,ME_BC:=ME_FC*ME_BC_EFf*hours]
                  #IMO4中没有副机MDO等油耗的BC排放，covered by table 52 不明白。目前假设与锅炉的相同
@@ -277,14 +284,10 @@ x<-foreach(i=1:file_num,.packages=c('data.table','dplyr','lubridate','circular')
                  test0=NMVOCtable[,list(ae_fuel_type=FuelType,ae_eng_type=EngineType,AE_NMVOCEF=NMVOCEF)][test0,on=.(ae_eng_type,ae_fuel_type)]
                  test0=NMVOCtable[,list(ab_fuel_type=FuelType,ab_eng_type=EngineType,AB_NMVOCEF=NMVOCEF)][test0,on=.(ab_eng_type,ab_fuel_type)]
                  test0=test0[,ME_NMVOC:=MEPower*ME_NMVOCEF*NMVOC_LLA*hours][,AE_NMVOC:=AEPower*AE_NMVOCEF*hours][,AB_NMVOC:=ABPower*AB_NMVOCEF*hours]
-                 test0[,103:137]=test0[,103:137]%>%round(.,2)
+                 test0[,98:132]=test0[,98:132]%>%round(.,2)
                  
-                 
-                 # fwrite(cbind(test0),paste('/Volumes/Samsung\ SSD/',ammsi,'.csv',sep = ''))
-                 # /Volumes/Samsung\ SSD/AIS 
-                 # qplot(aship$lon,aship$lat)
-                 # fwrite(cbind(test0),paste('/Users/mizexin/AIS/2019EM/',ammsi,'.csv'))
-                 fwrite(cbind(test0),paste('/Volumes/Samsung\ SSD/AIS/',AIS_year,'EM/',ammsi,'.gz',sep = ''))
+                
+                 # fwrite(cbind(test0),paste('/Volumes/Samsung\ SSD/AIS/',AIS_year,'EM/',ammsi,'.gz',sep = ''))
                }
              }
            }

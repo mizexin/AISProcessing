@@ -1,8 +1,10 @@
 library(data.table)
 library(showtext)
 library(ggplot2)
+library(plotly)
 library(hrbrthemes)
 library(dplyr)
+library(echarts4r)
 showtext_auto()
 
 # 读取两年的合并文件   
@@ -75,31 +77,46 @@ hours_size_bin %>%
 # 单位万海里
 
 # yday2019=fread("~/论文数据/2019yday.csv",sep = ',')%>%na.omit(.)
-yday2019=fread("/Volumes/Samsung\ SSD/汇总结果/fix/2019yday.csv",fill=TRUE)%>%na.omit(.)
-yday2019 = as.data.table(aggregate(yday2019[,2:13],by=list(yday2019$yday),sum)%>%
-                                                                        rename(.,'yday'= 'Group.1'))
+yday2019=fread("/Volumes/Samsung\ SSD/汇总结果/fix/2019yday_sum.csv",fill=TRUE)%>%na.omit(.)
+
 yday2019 = yday2019[,year:=2019]
 
 # fwrite(yday2019,paste('/Volumes/Samsung\ SSD/汇总结果/2019yday_sum.csv'),sep = ',',append = T)
 
 # yday2020=fread("~/论文数据/2020yday.csv",sep = ',')%>%na.omit(.)
-yday2020=fread("/Volumes/Samsung\ SSD/汇总结果/fix/2020yday.csv",fill=TRUE)%>%na.omit(.)
-yday2020 = as.data.table(aggregate(yday2020[,2:13],by=list(yday2020$yday),sum)%>%
-                           rename(.,'yday'= 'Group.1'))
-yday2020 = yday2020[,year:=2020]
-yday_dt =  rbind(yday2019,yday2020)
-yday_dt$year = as.character(yday_dt$year)
+yday2020=fread("/Volumes/Samsung\ SSD/汇总结果/fix/2020yday_sum.csv",fill=TRUE)%>%na.omit(.)
+
+yday2020      = yday2020[,year:=2020]
+yday_dt       =  rbind(yday2019,yday2020)
+yday_dt$year  = as.character(yday_dt$year)
 yday_dt[,4:13]=yday_dt[,4:13]/1000000 # 单位吨
 
 
-yday_dt %>%
-  ggplot( aes(x=as.integer(x = yday),group = year, y = FC, color= year)) +
+p <- yday_dt %>%
+  ggplot( aes(x = yday,group = year, y = FC, color= year)) +
   geom_line() +
   ggtitle("") +
   theme_ipsum() +
   ylab("FC") +
   # geom_label( x=1990, y=55000, label="Amanda reached 3550\nbabies in 1970", size=4, color="#69b3a2") +
   theme( )
+ggplotly(p)
+
+
+yhour2020=fread("/Volumes/Samsung\ SSD/汇总结果/fix/2020yhour_sum.csv",fill=TRUE)%>%na.omit(.)
+yhour2020 %>%
+  ggplot( aes(x = yhour, y = FC,)) +
+  geom_line() +
+  ggtitle("") +
+  theme_ipsum() +
+  ylab("FC") +
+  # geom_label( x=1990, y=55000, label="Amanda reached 3550\nbabies in 1970", size=4, color="#69b3a2") +
+  theme( )
+
+yhour2020 |>
+  e_chart(yhour)|> 
+  e_line(FC) |>
+  e_datazoom(type = "slider")
 
 abnormal  = yday_dt[FC >= 130000 | FC <= 80000]
 

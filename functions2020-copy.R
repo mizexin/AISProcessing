@@ -358,20 +358,6 @@ getLineSpeed <- function(lines,time_threshold=4,dist_threshold = 10) { # 距离�
   return(lines)
   
 }
-#distance of two points,单位米
-distance <- function(lon1,lat1,lon2,lat2) {
-  radlat1 = rad(lat1);
-  radlat2 = rad(lat2);
-  delta_lon = rad(lon2 - lon1);
-  top1 = cos(radlat2) * sin(delta_lon);
-  top2 = cos(radlat1) * sin(radlat2) - sin(radlat1) * cos(radlat2) * cos(delta_lon);
-  top = sqrt(top1 * top1 + top2 * top2);
-  bottom = sin(radlat1) * sin(radlat2) + cos(radlat1) * cos(radlat2) * cos(delta_lon);
-  delta_sigma = atan2(top,bottom);
-  distance = delta_sigma * 6378137.0;
-  return (distance);
-  
-}
 
 #计算弧度
 rad <- function(d) {
@@ -380,7 +366,7 @@ rad <- function(d) {
 
 getAbnormalLine<-function(lines,timelimit1=72,timelimit2=240,speedlimit=37.5){ #小时，节
   lines[,isabnormal:=0]
-  lines[(durhour>=timelimit1&avgspeed<3)|durhour>=timelimit2|avgspeed>=speedlimit*10,isabnormal:=1] #时间间隔大于72小时，同时平均航速有,这里的平均航速与sog相同单位
+  lines[(durhour>=timelimit1&avgspeed<3)|durhour>=timelimit2|avgspeed>=speedlimit*10,isabnormal:=1] #时间间隔大于72小时，同时平均航速小于3,这里的平均航速与sog相同单位
 }
 
 add_day_point<-function(aship){
@@ -396,3 +382,27 @@ add_day_point<-function(aship){
   return(aship2)
   
 }
+
+AddInfo <- function(aship,time_threshold=4,dist_threshold = 10) { 
+  setkey(aship,time)
+  setnames(aship,c('mmsi','time1','sog1','lon1','lat1','datetime1','isaddedday'))
+  aship[,time2:=shift(time1,-1)]
+  aship[,sog2:=shift(sog1,-1)]
+  aship[,lon2:=shift(lon1,-1)]
+  aship[,lat2:=shift(lat1,-1)]
+  aship[,datetime2:=shift(datetime1,-1)]
+  aship[!is.na(time2)][,lid:= seq(1,(nrow(aship) - 1))]
+  aship[,durhour:= round(abs(time2 - time1) * 1.0/3600,2)]
+  aship[,distnm:= round(distance(lon1,lat1,lon2,lat2)/1852,1)]
+  aship[,inst_avgspeed1:= round((sog1 + sog2) / 2)]
+  aship[,dist_avgspeed2:= round(distnm * 10 / (durhour))]
+  aship[,avgspeed:= inst_avgspeed1/10]; #节
+  aship[(distnm > dist_threshold) | (durhour > time_threshold),avgspeed:= dist_avgspeed2/10] #节
+  aship=data.table(mmsi=aship[1]$mmsi,time=aship$time1,sog=aship$sog1,lon=aship$lon1,lat=aship$lat1,datetime=aship$datetime1,durhour=aship$durhour,distnm=aship$distnm,avgspeed=aship$avgspeed,isaddedday=aship$isaddedday)
+  return(aship)
+}
+
+SplitTimeFormat <- function(aship){
+  aship[,hour:=lubridate::hour(datetime)][,day:=lubridate::day(datetime)][,week:=lubridate::week(datetime)][,month:=lubridate::month(datetime)][,yyear:=lubridate::year(datetime)][,yday:=yday(datetime)][,yhour:=hour+(yday-1)*24]
+}
+
