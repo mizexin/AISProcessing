@@ -1,5 +1,6 @@
 library(data.table)
 library(plyr)
+
 library(dplyr)
 ship_report_2019=fread('/Users/mizexin/论文数据/china_2019_container_fuel_report.csv',
   select =c("IMO Number","Deadweight tonnage","Distance travelled","Hours underway","Quantity"))%>%
